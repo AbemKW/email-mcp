@@ -5,3 +5,8 @@ node_modules/
 test/dbg*.ps1
 test/dbg*.out
 test/live-out.txt
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
