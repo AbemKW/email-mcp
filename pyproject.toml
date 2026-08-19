@@ -1,6 +1,6 @@
 [project]
 name = "email-mcp"
-version = "2.0.0"
+version = "2.1.0"
 description = "Outlook (classic, Windows COM) email + calendar as a CLI and MCP server — no Azure, no OAuth."
 readme = "README.md"
 license = { text = "MIT" }

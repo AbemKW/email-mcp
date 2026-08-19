@@ -1,6 +1,8 @@
 """Typer CLI adapter for email-mcp.
 
-One subcommand per tool plus ``mcp`` (which hands off to the MCP server). Each
+One subcommand per tool (11: list-accounts, query, read, send, draft, reply,
+forward, download, mark-read, sync, calendar) plus ``mcp`` (which hands off to
+the MCP server). Each
 tool command opens a single :class:`email_mcp.outlook.session.OutlookSession`,
 delegates to the matching function in :mod:`email_mcp.ops`, and prints the result
 as pretty JSON.
@@ -132,6 +134,31 @@ def send_cmd(
             cc=cc,
             attachments=attach,
             send_as=send_as,
+        )
+    )
+
+
+@app.command("draft")
+def draft_cmd(
+    to: str = typer.Option(..., "--to", help="Recipient address(es)."),
+    subject: str = typer.Option(..., "--subject", help="Email subject."),
+    body: str = typer.Option(..., "--body", help="Plain-text body."),
+    account: str = typer.Option(..., "--account", help="Sending account substring."),
+    cc: str = typer.Option("", "--cc", help="CC address(es)."),
+    attach: Optional[list[str]] = typer.Option(
+        None, "--attach", help="Attachment file path (repeatable)."
+    ),
+) -> None:
+    """Save a new email as a draft (does not send)."""
+    _run(
+        lambda s: ops_messages.draft_email(
+            s,
+            to=to,
+            subject=subject,
+            body=body,
+            account=account,
+            cc=cc,
+            attachments=attach,
         )
     )
 

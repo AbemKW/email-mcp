@@ -1,4 +1,4 @@
-"""FastMCP server exposing the 10 Outlook email tools over stdio.
+"""FastMCP server exposing the 11 Outlook email tools over stdio.
 
 This is a thin pass-through layer. It owns a single :class:`OutlookWorker` (an
 STA thread that holds the live Outlook COM handle) and marshals every tool call
@@ -87,6 +87,13 @@ _SEND_EMAIL_DESC = (
     "mailbox."
 )
 
+_DRAFT_EMAIL_DESC = (
+    "Compose a new email and save it as a draft instead of sending. Same parameters as send_email "
+    "(minus send_as, which is meaningless on an item that's never submitted). The draft lands in the "
+    "account's Drafts folder for later review/editing/sending from Outlook itself. Returns entry_id so "
+    "the draft can be read/edited/sent later."
+)
+
 _REPLY_EMAIL_DESC = (
     "Reply to an email. The `account` parameter is REQUIRED to prevent accidental cross-account replies. "
     "Use the optional `send_as` parameter for true Send As (see send_email for the full constraints)."
@@ -170,6 +177,28 @@ async def send_email(
             cc=cc,
             attachments=attachments,
             send_as=send_as,
+        )
+    )
+
+
+@mcp.tool(description=_DRAFT_EMAIL_DESC)
+async def draft_email(
+    to: str,
+    subject: str,
+    body: str,
+    account: str,
+    cc: str = "",
+    attachments: list[str] | None = None,
+) -> str:
+    return await _call(
+        lambda s: messages_ops.draft_email(
+            s,
+            to=to,
+            subject=subject,
+            body=body,
+            account=account,
+            cc=cc,
+            attachments=attachments,
         )
     )
 

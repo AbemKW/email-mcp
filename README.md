@@ -44,11 +44,18 @@ uvx --from git+https://github.com/kerodkibatu/email-mcp email send \
   --subject "Status update" \
   --body "Heads up — ..." \
   --account kerod@towlydigital.com
+
+# Save a new mail as a draft instead of sending (same flags as send, no --send-as)
+uvx --from git+https://github.com/kerodkibatu/email-mcp email draft \
+  --to client@example.com \
+  --subject "Status update" \
+  --body "Heads up — ..." \
+  --account kerod@towlydigital.com
 ```
 
 ### MCP
 
-`email mcp` boots a stdio MCP server exposing all 10 tools. Add it to your `.mcp.json` (or `claude_desktop_config.json`):
+`email mcp` boots a stdio MCP server exposing all 11 tools. Add it to your `.mcp.json` (or `claude_desktop_config.json`):
 
 ```json
 {
@@ -71,6 +78,7 @@ The first launch is slower while `uv` resolves the package; subsequent launches 
 | `query_emails` | MongoDB-style querying across all folders (`has_attachments`, `unread`, etc.) |
 | `read_email` | Read full body of an email by EntryID |
 | `send_email` | Send a new mail (optionally from a specific account, with file attachments) |
+| `draft_email` | Compose a new mail and save it as a draft instead of sending |
 | `reply_email` | Reply / Reply All to an email |
 | `forward_email` | Forward an email |
 | `download_attachments` | Save real attachments to `~/Downloads/email-attachments/YYYY-MM-DD_<sender>_<subject>/` |

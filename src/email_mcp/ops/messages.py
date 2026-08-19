@@ -1,10 +1,12 @@
-"""Message operations — the core query/read/send/reply/forward/mark ops.
+"""Message operations — the core query/read/send/draft/reply/forward/mark ops.
 
 Native pywin32 COM port of the corresponding handlers in the old ``index.js``
 (the ``query_emails``/``read_email``/``send_email``/``reply_email``/
 ``forward_email``/``mark_as_read`` cases, plus the folder/sort/slice logic that
 lived in ``buildQueryScript``). Behavior matches the JS tool-for-tool: field
 names, defaults, clamps, date formats, and JSON output keys are identical.
+``draft_email`` (below) is new — not part of the original JS tool set — and
+mirrors ``send_email``'s composition with ``.Save()`` instead of ``.Send()``.
 
 All COM access goes through the injected :class:`~email_mcp.outlook.session.OutlookSession`
 — this module never imports ``win32com`` and never spawns PowerShell. Every COM
@@ -381,6 +383,60 @@ def send_email(
     if send_as:
         result["sent_as"] = send_as
     return result
+
+
+def draft_email(
+    session: Any,
+    to: str,
+    subject: str,
+    body: str,
+    account: str,
+    cc: str = "",
+    attachments: list[str] | None = None,
+) -> dict:
+    """Compose a new mail and save it as a draft instead of sending. Sibling of
+    :func:`send_email` — identical composition, but calls ``item.Save()`` instead
+    of ``item.Send()``, so the item lands in the account's Drafts folder for later
+    review/editing/sending from Outlook itself.
+
+    Validates ``account`` and attachment paths exactly like ``send_email``. Still
+    assigns ``SendUsingAccount`` so the draft remembers which account it will send
+    from. Does NOT support ``send_as``: Send As rewrites sender identity props at
+    submit time, so applying it to an item that is never submitted would silently
+    misrepresent the draft's actual sender.
+
+    Returns ``{status: 'draft', entry_id, to, from}`` where ``entry_id`` lets a
+    caller later ``read``/edit/send the same item, and ``from`` is the assigned
+    account's SmtpAddress (falling back to the current user's address).
+    """
+    resolve_validated_account(session, account)
+    validated_attachments = validate_attachments(attachments)
+
+    item = session.app.CreateItem(0)
+    item.Subject = subject
+    item.HTMLBody = f"<div>{text_to_html(body)}</div>"
+    item.To = to
+    if cc:
+        item.CC = cc
+    for path in validated_attachments:
+        item.Attachments.Add(path)
+
+    send_acct = _resolve_send_account(session, account)
+    item.SendUsingAccount = send_acct
+
+    try:
+        drafted_from = str(send_acct.SmtpAddress)
+    except Exception:
+        drafted_from = session.current_user_address()
+
+    item.Save()
+
+    try:
+        entry_id = str(item.EntryID)
+    except Exception:
+        entry_id = ""
+
+    return {"status": "draft", "entry_id": entry_id, "to": to, "from": drafted_from}
 
 
 def reply_email(
