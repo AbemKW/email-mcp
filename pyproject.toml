@@ -36,3 +36,4 @@ packages = ["src/email_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

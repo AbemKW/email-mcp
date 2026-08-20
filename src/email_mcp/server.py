@@ -209,6 +209,7 @@ async def reply_email(
     body: str,
     account: str,
     reply_all: bool = False,
+    attachments: list[str] | None = None,
     send_as: str = "",
 ) -> str:
     return await _call(
@@ -218,6 +219,7 @@ async def reply_email(
             body=body,
             account=account,
             reply_all=reply_all,
+            attachments=attachments,
             send_as=send_as,
         )
     )
@@ -230,6 +232,7 @@ async def forward_email(
     account: str,
     cc: str = "",
     body: str = "",
+    attachments: list[str] | None = None,
     send_as: str = "",
 ) -> str:
     return await _call(
@@ -240,6 +243,7 @@ async def forward_email(
             account=account,
             cc=cc,
             body=body,
+            attachments=attachments,
             send_as=send_as,
         )
     )

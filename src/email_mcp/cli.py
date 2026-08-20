@@ -170,6 +170,9 @@ def reply_cmd(
     account: str = typer.Option(..., "--account", help="Sending account substring."),
     reply_all: bool = typer.Option(False, "--reply-all", help="Reply to all recipients."),
     send_as: str = typer.Option("", "--send-as", help="SMTP address to send AS."),
+    attach: Optional[list[str]] = typer.Option(
+        None, "--attach", help="Attachment file path (repeatable)."
+    ),
 ) -> None:
     """Reply to an email."""
     _run(
@@ -179,6 +182,7 @@ def reply_cmd(
             body=body,
             account=account,
             reply_all=reply_all,
+            attachments=attach,
             send_as=send_as,
         )
     )
@@ -192,6 +196,9 @@ def forward_cmd(
     cc: str = typer.Option("", "--cc", help="CC address(es)."),
     body: str = typer.Option("", "--body", help="Optional plain-text body to prepend."),
     send_as: str = typer.Option("", "--send-as", help="SMTP address to send AS."),
+    attach: Optional[list[str]] = typer.Option(
+        None, "--attach", help="Attachment file path (repeatable)."
+    ),
 ) -> None:
     """Forward an email."""
     _run(
@@ -202,6 +209,7 @@ def forward_cmd(
             account=account,
             cc=cc,
             body=body,
+            attachments=attach,
             send_as=send_as,
         )
     )

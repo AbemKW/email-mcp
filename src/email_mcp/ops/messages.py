@@ -445,17 +445,20 @@ def reply_email(
     body: str,
     account: str,
     reply_all: bool = False,
+    attachments: list[str] | None = None,
     send_as: str = "",
 ) -> dict:
     """Reply (or reply-all) to an email. Ports the ``reply_email`` handler.
 
-    Validates ``account`` (store names), creates the reply, PREPENDS the div-wrapped
-    HTML body to the reply's existing HTMLBody, assigns ``SendUsingAccount``, applies
+    Validates ``account`` (store names) and validates all attachment paths before
+    touching COM. Creates the reply, PREPENDS the div-wrapped HTML body to the reply's
+    existing HTMLBody, sets attachments, assigns ``SendUsingAccount``, applies
     ``send_as`` (if any) before sending.
 
     Returns ``{status: 'sent', from[, sent_as]}``.
     """
     resolve_validated_account(session, account)
+    validated_attachments = validate_attachments(attachments)
 
     item = session.get_item(entry_id)
     reply = item.ReplyAll() if reply_all else item.Reply()
@@ -468,6 +471,9 @@ def reply_email(
         sent_from = str(send_acct.SmtpAddress)
     except Exception:
         sent_from = session.current_user_address()
+
+    for path in validated_attachments:
+        reply.Attachments.Add(path)
 
     apply_send_as(session, reply, send_as)
     reply.Send()
@@ -485,18 +491,21 @@ def forward_email(
     account: str,
     cc: str = "",
     body: str = "",
+    attachments: list[str] | None = None,
     send_as: str = "",
 ) -> dict:
     """Forward an email. Ports the ``forward_email`` handler.
 
-    Validates ``account`` (store names), creates the forward, sets recipients (CC
-    only when truthy), and — only if ``body`` is non-empty — PREPENDS the div-wrapped
-    HTML body to the forward's existing HTMLBody. Assigns ``SendUsingAccount``,
-    applies ``send_as`` (if any) before sending.
+    Validates ``account`` (store names) and validates all attachment paths before
+    touching COM. Creates the forward, sets recipients (CC only when truthy), sets
+    additional attachments, and — only if ``body`` is non-empty — PREPENDS the
+    div-wrapped HTML body to the forward's existing HTMLBody. Assigns
+    ``SendUsingAccount``, applies ``send_as`` (if any) before sending.
 
     Returns ``{status: 'sent', to, from[, sent_as]}``.
     """
     resolve_validated_account(session, account)
+    validated_attachments = validate_attachments(attachments)
 
     item = session.get_item(entry_id)
     fwd = item.Forward()
@@ -513,6 +522,9 @@ def forward_email(
         sent_from = str(send_acct.SmtpAddress)
     except Exception:
         sent_from = session.current_user_address()
+
+    for path in validated_attachments:
+        fwd.Attachments.Add(path)
 
     apply_send_as(session, fwd, send_as)
     fwd.Send()
