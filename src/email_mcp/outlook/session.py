@@ -30,7 +30,28 @@ from email_mcp.errors import (
 OL_MAIL_ITEM = 0            # olMailItem (CreateItem arg; also DefaultItemType for mail folders)
 OL_CALENDAR_DEFAULT_TYPE = 1  # DefaultItemType for calendar folders
 OL_FOLDER_CALENDAR = 9      # olFolderCalendar (GetDefaultFolder arg)
-OL_CLASS_MAIL = 43          # olMail (item.Class for a mail item)
+
+OL_CLASS_MAIL = 43                  # olMail (item.Class for a standard mail item)
+OL_CLASS_REPORT = 46                # olReport (NDR, delivery/read receipts)
+OL_CLASS_MEETING_REQUEST = 53       # olMeetingRequest (meeting invite)
+OL_CLASS_MEETING_CANCELLATION = 54  # olMeetingCancellation
+OL_CLASS_MEETING_DECLINE = 55       # olMeetingResponseNegative
+OL_CLASS_MEETING_ACCEPT = 56        # olMeetingResponsePositive
+OL_CLASS_MEETING_TENTATIVE = 57     # olMeetingResponseTentative
+OL_CLASS_SHARING = 181              # olSharing (calendar/folder sharing invite)
+
+OL_MAIL_CLASSES: frozenset[int] = frozenset(
+    {
+        OL_CLASS_MAIL,
+        OL_CLASS_REPORT,
+        OL_CLASS_MEETING_REQUEST,
+        OL_CLASS_MEETING_CANCELLATION,
+        OL_CLASS_MEETING_DECLINE,
+        OL_CLASS_MEETING_ACCEPT,
+        OL_CLASS_MEETING_TENTATIVE,
+        OL_CLASS_SHARING,
+    }
+)
 
 
 class OutlookSession:

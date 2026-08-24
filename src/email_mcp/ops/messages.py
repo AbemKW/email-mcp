@@ -24,7 +24,7 @@ from email_mcp.ops.accounts import resolve_validated_account
 from email_mcp.ops.attachments import validate_attachments
 from email_mcp.ops.sendas import apply_send_as
 from email_mcp.outlook.folders import all_mail_folders
-from email_mcp.outlook.session import OL_CLASS_MAIL
+from email_mcp.outlook.session import OL_MAIL_CLASSES
 from email_mcp.query import compile_filter
 from email_mcp.text import text_to_html
 
@@ -32,16 +32,38 @@ from email_mcp.text import text_to_html
 _DEFAULT_SORT: tuple[str, bool] = ORDER_MAP["received_desc"]
 
 
+def _is_valid_com_date(value: Any) -> bool:
+    """Return True if value is a datetime with a realistic year (not an Outlook sentinel)."""
+    try:
+        year = getattr(value, "year", 0)
+        return 1900 <= year < 4500
+    except Exception:
+        return False
+
+
 def _fmt_dt(value: Any, fmt: str) -> str:
     """Format a COM datetime like PowerShell's ``.ToString(fmt)``; ``''`` on failure.
 
-    ``fmt`` is a strftime pattern. pywin32 returns ``datetime``-like objects, but a
-    hostile/absent value must degrade to an empty string exactly like the JS guards.
+    Guards against null/absent values and Outlook sentinel dates (4501-01-01 / 1601-01-01).
     """
     try:
-        if not value:
+        if not value or not _is_valid_com_date(value):
             return ""
         return value.strftime(fmt)
+    except Exception:
+        return ""
+
+
+def _get_sender_email(item: Any) -> str:
+    """Return sender email, falling back to SenderName (e.g. for ReportItems/MeetingItems)."""
+    try:
+        addr = str(getattr(item, "SenderEmailAddress", "") or "")
+        if addr:
+            return addr
+    except Exception:
+        pass
+    try:
+        return str(getattr(item, "SenderName", "") or "")
     except Exception:
         return ""
 
@@ -64,10 +86,7 @@ def _project_field(item: Any, field: str) -> Any:
         except Exception:
             return ""
     if field == "from":
-        try:
-            return str(item.SenderEmailAddress)
-        except Exception:
-            return ""
+        return _get_sender_email(item)
     if field == "from_name":
         try:
             return str(item.SenderName)
@@ -130,23 +149,26 @@ def _safe_get(item: Any, prop: str) -> Any:
 def _sort_key_for(prop: str) -> Callable[[Any], Any]:
     """Build a never-raising sort key for the cross-folder re-sort.
 
-    Returns a primitive (float timestamp for date props, ``str`` for Subject) so
-    ``sorted`` cannot throw on ``None``/mixed/tz-aware comparisons; the caller still
-    wraps the sort in try/except to mirror the JS ``catch { $sorted = $allItems }``.
+    Returns a primitive (float timestamp for date props, lowercased str for Subject) so
+    ``sorted`` is stable and immune to None/sentinel dates/tz-aware comparisons.
     """
     if prop in ("ReceivedTime", "SentOn"):
 
-        def key(item: Any) -> float:
+        def date_key(item: Any) -> float:
             try:
-                return getattr(item, prop).timestamp()
+                val = getattr(item, prop, None)
+                if not val or not _is_valid_com_date(val):
+                    return 0.0
+                return float(val.timestamp())
             except Exception:
                 return 0.0
 
-        return key
+        return date_key
 
     def subject_key(item: Any) -> str:
         try:
-            return str(item.Subject)
+            val = getattr(item, "Subject", "")
+            return "" if val is None else str(val).lower()
         except Exception:
             return ""
 
@@ -212,16 +234,18 @@ def query_emails(
         except Exception:
             continue
 
-        try:
-            items.Sort(f"[{sort_prop}]", sort_desc)
-        except Exception:
-            pass
-
+        # Restrict first, then sort the restricted collection in-place.
+        # In Outlook COM, Restrict returns a new collection with uninitialized sort order.
         if expr:
             try:
                 items = items.Restrict("@SQL=" + expr)
             except Exception:
                 continue
+
+        try:
+            items.Sort(f"[{sort_prop}]", sort_desc)
+        except Exception:
+            pass
 
         try:
             total_matched += int(items.Count)
@@ -234,7 +258,7 @@ def query_emails(
                 if taken >= per_folder_cap:
                     break
                 try:
-                    if item.Class != OL_CLASS_MAIL:
+                    if getattr(item, "Class", 0) not in OL_MAIL_CLASSES:
                         continue
                     all_items.append(item)
                     taken += 1
@@ -243,16 +267,14 @@ def query_emails(
         except Exception:
             pass
 
-    # Cross-folder final sort (per-folder Sort/Restrict cannot span folders).
-    if len(mail_folders) <= 1:
+    # Cross-folder final sort: run unconditionally for stable sentinel date,
+    # timezone, and case-insensitive subject handling.
+    try:
+        sorted_items = sorted(
+            all_items, key=_sort_key_for(sort_prop), reverse=sort_desc
+        )
+    except Exception:
         sorted_items = all_items
-    else:
-        try:
-            sorted_items = sorted(
-                all_items, key=_sort_key_for(sort_prop), reverse=sort_desc
-            )
-        except Exception:
-            sorted_items = all_items
 
     sliced = sorted_items[offset : offset + limit]
 
@@ -309,7 +331,7 @@ def read_email(session: Any, entry_id: str) -> dict:
     return {
         "entry_id": _s("EntryID"),
         "subject": _s("Subject"),
-        "from": _s("SenderEmailAddress"),
+        "from": _get_sender_email(item),
         "from_name": _s("SenderName"),
         "to": _s("To"),
         "cc": _s("CC"),
