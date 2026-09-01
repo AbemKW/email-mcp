@@ -24,7 +24,7 @@ from email_mcp.ops.accounts import resolve_validated_account
 from email_mcp.ops.attachments import validate_attachments
 from email_mcp.ops.sendas import apply_send_as
 from email_mcp.outlook.folders import all_mail_folders
-from email_mcp.outlook.session import OL_CLASS_MAIL
+from email_mcp.outlook.session import OL_CLASS_MAIL, OL_FOLDER_DRAFTS
 from email_mcp.query import compile_filter
 from email_mcp.text import text_to_html
 
@@ -357,9 +357,15 @@ def send_email(
     account's SmtpAddress (falling back to the current user's address).
     """
     resolve_validated_account(session, account)
+    send_acct = _resolve_send_account(session, account)
     validated_attachments = validate_attachments(attachments)
 
-    item = session.app.CreateItem(0)
+    try:
+        drafts_folder = send_acct.DeliveryStore.GetDefaultFolder(OL_FOLDER_DRAFTS)
+        item = drafts_folder.Items.Add("IPM.Note")
+    except Exception:
+        item = session.app.CreateItem(0)  # fallback for accounts without DeliveryStore (e.g. some POP3 setups)
+
     item.Subject = subject
     item.HTMLBody = f"<div>{text_to_html(body)}</div>"
     item.To = to
@@ -368,7 +374,6 @@ def send_email(
     for path in validated_attachments:
         item.Attachments.Add(path)
 
-    send_acct = _resolve_send_account(session, account)
     item.SendUsingAccount = send_acct
 
     try:
@@ -410,9 +415,15 @@ def draft_email(
     account's SmtpAddress (falling back to the current user's address).
     """
     resolve_validated_account(session, account)
+    send_acct = _resolve_send_account(session, account)
     validated_attachments = validate_attachments(attachments)
 
-    item = session.app.CreateItem(0)
+    try:
+        drafts_folder = send_acct.DeliveryStore.GetDefaultFolder(OL_FOLDER_DRAFTS)
+        item = drafts_folder.Items.Add("IPM.Note")
+    except Exception:
+        item = session.app.CreateItem(0)  # fallback for accounts without DeliveryStore (e.g. some POP3 setups)
+
     item.Subject = subject
     item.HTMLBody = f"<div>{text_to_html(body)}</div>"
     item.To = to
@@ -421,7 +432,6 @@ def draft_email(
     for path in validated_attachments:
         item.Attachments.Add(path)
 
-    send_acct = _resolve_send_account(session, account)
     item.SendUsingAccount = send_acct
 
     try:

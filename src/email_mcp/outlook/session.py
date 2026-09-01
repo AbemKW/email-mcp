@@ -30,6 +30,7 @@ from email_mcp.errors import (
 OL_MAIL_ITEM = 0            # olMailItem (CreateItem arg; also DefaultItemType for mail folders)
 OL_CALENDAR_DEFAULT_TYPE = 1  # DefaultItemType for calendar folders
 OL_FOLDER_CALENDAR = 9      # olFolderCalendar (GetDefaultFolder arg)
+OL_FOLDER_DRAFTS = 16       # olFolderDrafts (GetDefaultFolder arg)
 OL_CLASS_MAIL = 43          # olMail (item.Class for a mail item)
 
 
