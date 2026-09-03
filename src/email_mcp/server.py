@@ -95,14 +95,19 @@ _DRAFT_EMAIL_DESC = (
 )
 
 _REPLY_EMAIL_DESC = (
-    "Reply to an email. The `account` parameter is REQUIRED to prevent accidental cross-account replies. "
-    "Use the optional `send_as` parameter for true Send As (see send_email for the full constraints)."
+    "Reply to an email. SENDS IMMEDIATELY by default — pass `draft=true` to save the reply to the "
+    "account's Drafts folder instead, for cases (e.g. user asked to draft, not send) where the reply "
+    "needs review before it goes out. A drafted reply keeps threading (In-Reply-To, quoted body, subject "
+    "prefix) that composing a new draft_email cannot reproduce. The `account` parameter is REQUIRED to "
+    "prevent accidental cross-account replies. `send_as` only applies when sending (ignored when drafting "
+    "— see send_email for the full constraints)."
 )
 
 _FORWARD_EMAIL_DESC = (
-    "Forward an email. Preserves the original subject (FW:), quoted body, and attachments. The `account` "
-    "parameter is REQUIRED to prevent accidental cross-account forwards. Use the optional `send_as` "
-    "parameter for true Send As (see send_email for the full constraints)."
+    "Forward an email. Preserves the original subject (FW:), quoted body, and attachments. SENDS "
+    "IMMEDIATELY by default — pass `draft=true` to save the forward to the account's Drafts folder instead "
+    "of sending it. The `account` parameter is REQUIRED to prevent accidental cross-account forwards. "
+    "`send_as` only applies when sending (ignored when drafting — see send_email for the full constraints)."
 )
 
 _DOWNLOAD_ATTACHMENTS_DESC = (
@@ -210,6 +215,7 @@ async def reply_email(
     account: str,
     reply_all: bool = False,
     send_as: str = "",
+    draft: bool = False,
 ) -> str:
     return await _call(
         lambda s: messages_ops.reply_email(
@@ -219,6 +225,7 @@ async def reply_email(
             account=account,
             reply_all=reply_all,
             send_as=send_as,
+            draft=draft,
         )
     )
 
@@ -231,6 +238,7 @@ async def forward_email(
     cc: str = "",
     body: str = "",
     send_as: str = "",
+    draft: bool = False,
 ) -> str:
     return await _call(
         lambda s: messages_ops.forward_email(
@@ -241,6 +249,7 @@ async def forward_email(
             cc=cc,
             body=body,
             send_as=send_as,
+            draft=draft,
         )
     )
 

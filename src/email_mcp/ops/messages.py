@@ -456,6 +456,7 @@ def reply_email(
     account: str,
     reply_all: bool = False,
     send_as: str = "",
+    draft: bool = False,
 ) -> dict:
     """Reply (or reply-all) to an email. Ports the ``reply_email`` handler.
 
@@ -463,7 +464,16 @@ def reply_email(
     HTML body to the reply's existing HTMLBody, assigns ``SendUsingAccount``, applies
     ``send_as`` (if any) before sending.
 
-    Returns ``{status: 'sent', from[, sent_as]}``.
+    When ``draft`` is ``True``, calls ``reply.Save()`` instead of ``reply.Send()`` —
+    sibling of :func:`draft_email`'s send/draft split, but preserving the reply's
+    threading (In-Reply-To, quoted body, subject prefix) that a fresh ``draft_email``
+    call cannot reproduce. Outlook saves an unsent reply item to the account's Drafts
+    folder. ``send_as`` is skipped when drafting for the same reason ``draft_email``
+    skips it: it rewrites sender identity at submit time, so applying it to an item
+    that is never submitted would silently misrepresent the draft's actual sender.
+
+    Returns ``{status: 'sent', from[, sent_as]}`` when sent, or
+    ``{status: 'draft', entry_id, from}`` when drafted.
     """
     resolve_validated_account(session, account)
 
@@ -475,14 +485,22 @@ def reply_email(
     reply.SendUsingAccount = send_acct
 
     try:
-        sent_from = str(send_acct.SmtpAddress)
+        from_addr = str(send_acct.SmtpAddress)
     except Exception:
-        sent_from = session.current_user_address()
+        from_addr = session.current_user_address()
+
+    if draft:
+        reply.Save()
+        try:
+            reply_entry_id = str(reply.EntryID)
+        except Exception:
+            reply_entry_id = ""
+        return {"status": "draft", "entry_id": reply_entry_id, "from": from_addr}
 
     apply_send_as(session, reply, send_as)
     reply.Send()
 
-    result: dict[str, Any] = {"status": "sent", "from": sent_from}
+    result: dict[str, Any] = {"status": "sent", "from": from_addr}
     if send_as:
         result["sent_as"] = send_as
     return result
@@ -496,6 +514,7 @@ def forward_email(
     cc: str = "",
     body: str = "",
     send_as: str = "",
+    draft: bool = False,
 ) -> dict:
     """Forward an email. Ports the ``forward_email`` handler.
 
@@ -504,7 +523,12 @@ def forward_email(
     HTML body to the forward's existing HTMLBody. Assigns ``SendUsingAccount``,
     applies ``send_as`` (if any) before sending.
 
-    Returns ``{status: 'sent', to, from[, sent_as]}``.
+    When ``draft`` is ``True``, calls ``fwd.Save()`` instead of ``fwd.Send()`` —
+    same send/draft split as :func:`reply_email`, and for the same reason ``send_as``
+    is skipped when drafting.
+
+    Returns ``{status: 'sent', to, from[, sent_as]}`` when sent, or
+    ``{status: 'draft', entry_id, to, from}`` when drafted.
     """
     resolve_validated_account(session, account)
 
@@ -520,14 +544,22 @@ def forward_email(
     fwd.SendUsingAccount = send_acct
 
     try:
-        sent_from = str(send_acct.SmtpAddress)
+        from_addr = str(send_acct.SmtpAddress)
     except Exception:
-        sent_from = session.current_user_address()
+        from_addr = session.current_user_address()
+
+    if draft:
+        fwd.Save()
+        try:
+            fwd_entry_id = str(fwd.EntryID)
+        except Exception:
+            fwd_entry_id = ""
+        return {"status": "draft", "entry_id": fwd_entry_id, "to": to, "from": from_addr}
 
     apply_send_as(session, fwd, send_as)
     fwd.Send()
 
-    result: dict[str, Any] = {"status": "sent", "to": to, "from": sent_from}
+    result: dict[str, Any] = {"status": "sent", "to": to, "from": from_addr}
     if send_as:
         result["sent_as"] = send_as
     return result
