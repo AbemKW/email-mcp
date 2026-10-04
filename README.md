@@ -79,6 +79,9 @@ The first launch is slower while `uv` resolves the package; subsequent launches 
 | `read_email` | Read full body of an email by EntryID |
 | `send_email` | Send a new mail (optionally from a specific account, with file attachments) |
 | `draft_email` | Compose a new mail and save it as a draft instead of sending |
+| `edit_draft` | Edit an unsent draft in place (to/cc/subject/body/attachments); keeps the quoted thread on reply/forward drafts |
+| `delete_draft` | Delete an unsent draft (moves to Deleted Items; refuses non-drafts) |
+| `list_drafts` | List unsent drafts, newest first, to find stale ones |
 | `reply_email` | Reply / Reply All to an email |
 | `forward_email` | Forward an email |
 | `download_attachments` | Save real attachments to `~/Downloads/email-attachments/YYYY-MM-DD_<sender>_<subject>/` |

@@ -55,3 +55,7 @@ class EmailNotFound(EmailMcpError):
 
 class SendAsUnresolved(EmailMcpError):
     """The send_as address could not be resolved by Exchange (typically not same-tenant)."""
+
+
+class NotADraft(EmailMcpError):
+    """The EntryID resolved to an item that is not an unsent draft (sent/received mail)."""

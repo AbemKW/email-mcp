@@ -1,4 +1,4 @@
-"""FastMCP server exposing the 11 Outlook email tools over stdio.
+"""FastMCP server exposing the 14 Outlook email tools over stdio.
 
 This is a thin pass-through layer. It owns a single :class:`OutlookWorker` (an
 STA thread that holds the live Outlook COM handle) and marshals every tool call
@@ -26,6 +26,7 @@ from email_mcp.errors import EmailMcpError
 from email_mcp.ops import accounts as accounts_ops
 from email_mcp.ops import attachments as attachments_ops
 from email_mcp.ops import calendar as calendar_ops
+from email_mcp.ops import drafts as drafts_ops
 from email_mcp.ops import messages as messages_ops
 from email_mcp.ops import sync as sync_ops
 from email_mcp.outlook.session import OutlookSession
@@ -91,7 +92,29 @@ _DRAFT_EMAIL_DESC = (
     "Compose a new email and save it as a draft instead of sending. Same parameters as send_email "
     "(minus send_as, which is meaningless on an item that's never submitted). The draft lands in the "
     "account's Drafts folder for later review/editing/sending from Outlook itself. Returns entry_id so "
-    "the draft can be read/edited/sent later."
+    "the draft can be read/edited/sent later. To revise a draft you already created, use edit_draft "
+    "with its entry_id instead of drafting again; use delete_draft to discard one."
+)
+
+_EDIT_DRAFT_DESC = (
+    "Edit an unsent draft in place (from draft_email, or reply_email/forward_email with draft=true). "
+    "Pass only the fields to change: to, cc, subject, body, attachments_add (absolute paths), "
+    "attachments_remove (filenames). `body` replaces the text written by this server and keeps the "
+    "quoted thread on reply/forward drafts. Prefer this over creating a new draft when revising, so "
+    "Drafts does not fill up. Refuses anything that is not an unsent draft. Returns the draft's "
+    "entry_id (use the returned one) and what changed."
+)
+
+_DELETE_DRAFT_DESC = (
+    "Delete an unsent draft by entry_id. Moves it to Deleted Items (recoverable), never a permanent "
+    "purge. Refuses anything that is not an unsent draft, so sent/received mail cannot be deleted "
+    "with this tool."
+)
+
+_LIST_DRAFTS_DESC = (
+    "List unsent drafts, newest-modified first, with entry_id, account, to, cc, subject, modified, "
+    "has_attachments and a preview. Use it to find a draft to edit_draft/delete_draft, or to clean up "
+    "stale ones. Optional `account` substring limits to one mailbox."
 )
 
 _REPLY_EMAIL_DESC = (
@@ -206,6 +229,40 @@ async def draft_email(
             attachments=attachments,
         )
     )
+
+
+@mcp.tool(description=_EDIT_DRAFT_DESC)
+async def edit_draft(
+    entry_id: str,
+    to: str | None = None,
+    cc: str | None = None,
+    subject: str | None = None,
+    body: str | None = None,
+    attachments_add: list[str] | None = None,
+    attachments_remove: list[str] | None = None,
+) -> str:
+    return await _call(
+        lambda s: drafts_ops.edit_draft(
+            s,
+            entry_id=entry_id,
+            to=to,
+            cc=cc,
+            subject=subject,
+            body=body,
+            attachments_add=attachments_add,
+            attachments_remove=attachments_remove,
+        )
+    )
+
+
+@mcp.tool(description=_DELETE_DRAFT_DESC)
+async def delete_draft(entry_id: str) -> str:
+    return await _call(lambda s: drafts_ops.delete_draft(s, entry_id))
+
+
+@mcp.tool(description=_LIST_DRAFTS_DESC)
+async def list_drafts(account: str = "", limit: int = 20) -> str:
+    return await _call(lambda s: drafts_ops.list_drafts(s, account=account, limit=limit))
 
 
 @mcp.tool(description=_REPLY_EMAIL_DESC)

@@ -26,7 +26,7 @@ from email_mcp.ops.sendas import apply_send_as
 from email_mcp.outlook.folders import all_mail_folders
 from email_mcp.outlook.session import OL_CLASS_MAIL, OL_FOLDER_DRAFTS
 from email_mcp.query import compile_filter
-from email_mcp.text import text_to_html
+from email_mcp.text import marked_body_html, text_to_html
 
 # Default sort when order_by is unknown (mirrors ORDER_MAP.received_desc fallback).
 _DEFAULT_SORT: tuple[str, bool] = ORDER_MAP["received_desc"]
@@ -425,7 +425,7 @@ def draft_email(
         item = session.app.CreateItem(0)  # fallback for accounts without DeliveryStore (e.g. some POP3 setups)
 
     item.Subject = subject
-    item.HTMLBody = f"<div>{text_to_html(body)}</div>"
+    item.HTMLBody = marked_body_html(body)
     item.To = to
     if cc:
         item.CC = cc
@@ -479,7 +479,8 @@ def reply_email(
 
     item = session.get_item(entry_id)
     reply = item.ReplyAll() if reply_all else item.Reply()
-    reply.HTMLBody = f"<div>{text_to_html(body)}</div>" + reply.HTMLBody
+    block = marked_body_html(body) if draft else f"<div>{text_to_html(body)}</div>"
+    reply.HTMLBody = block + reply.HTMLBody
 
     send_acct = _resolve_send_account(session, account)
     reply.SendUsingAccount = send_acct
@@ -538,7 +539,8 @@ def forward_email(
     if cc:
         fwd.CC = cc
     if body:
-        fwd.HTMLBody = f"<div>{text_to_html(body)}</div>" + fwd.HTMLBody
+        block = marked_body_html(body) if draft else f"<div>{text_to_html(body)}</div>"
+        fwd.HTMLBody = block + fwd.HTMLBody
 
     send_acct = _resolve_send_account(session, account)
     fwd.SendUsingAccount = send_acct
